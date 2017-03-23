@@ -1,7 +1,8 @@
 package guru.bug.gonwayish.model;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
@@ -55,11 +56,34 @@ public class Field {
         return running;
     }
 
-    public Set<Cell> findAround(Position pos) {
-        return pos.around().stream()
-                .map(fieldMap::get)
-                .peek(Cell::lock)
-                .collect(Collectors.toSet());
+    /**
+     * Method takes all cells around the provided position and tries to lock them.
+     * If all around cells are locked successfully - method returns list of cells.
+     * If locking is failed at least for one cell - all already locked cells released
+     * and null is returned.
+     *
+     * @param pos position to look around
+     * @return list of cells if all around cells are locked. Null if locking is failed.
+     */
+    public List<Cell> findAroundAndTryLock(Position pos) {
+        List<Cell> result = new ArrayList<>(8);
+        boolean lockFailed = false;
+        for (Position p : pos.around()) {
+            Cell c = fieldMap.get(p);
+            if (c.tryLock()) {
+                result.add(c);
+            } else {
+                lockFailed = true;
+                break;
+            }
+        }
+        if (lockFailed) {
+            result.forEach(Cell::unlock);
+            return null;
+        } else {
+            return result;
+        }
+
     }
 
     public void releaseAround(Position pos) {

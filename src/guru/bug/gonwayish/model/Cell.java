@@ -1,6 +1,6 @@
 package guru.bug.gonwayish.model;
 
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -46,8 +46,10 @@ public class Cell implements Runnable {
             try {
                 long bt = getBirthtime();
                 long cur = System.currentTimeMillis();
-
-                Set<Cell> around = field.findAround(position);
+                List<Cell> around = field.findAroundAndTryLock(position);
+                if (around == null) {
+                    continue;
+                }
                 try {
                     long liveCount = around.stream()
                             .map(Cell::getCellInfo)
@@ -62,7 +64,6 @@ public class Cell implements Runnable {
                     long age = cur - bt;
 
                     if (age > LIFE_PERIOD && bt != -1) {
-                        System.out.println("Cell " + position + " is too old");
                         updateCellInfo(-1, 0);
                     }
                 } finally {
@@ -119,6 +120,10 @@ public class Cell implements Runnable {
 
     public void lock() {
         lock.lock();
+    }
+
+    public boolean tryLock() {
+        return lock.tryLock();
     }
 
     public void unlock() {
