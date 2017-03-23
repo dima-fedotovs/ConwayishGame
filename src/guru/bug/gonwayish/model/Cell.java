@@ -1,7 +1,7 @@
 package guru.bug.gonwayish.model;
 
-import java.awt.*;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @author Dimitrijs Fedotovs <a href="http://www.bug.guru">www.bug.guru</a>
@@ -10,6 +10,7 @@ import java.util.Set;
  */
 public class Cell implements Runnable {
     private static final long LIFE_PERIOD = 2000; // milliseconds
+    private final ReentrantLock lock = new ReentrantLock();
     private final Field field;
     private final Position position;
     private double size;
@@ -41,25 +42,34 @@ public class Cell implements Runnable {
         waitUntilFieldReady();
         while (field.isRunning()) {
             pause();
-            long bt = getBirthtime();
-            long cur = System.currentTimeMillis();
+            lock();
+            try {
+                long bt = getBirthtime();
+                long cur = System.currentTimeMillis();
 
-            Set<Cell> around = field.findAround(position);
-            long liveCount = around.stream()
-                    .map(Cell::getCellInfo)
-                    .filter(CellInfo::isAlive)
-                    .count();
+                Set<Cell> around = field.findAround(position);
+                try {
+                    long liveCount = around.stream()
+                            .map(Cell::getCellInfo)
+                            .filter(CellInfo::isAlive)
+                            .count();
 
-            if (bt == -1 && liveCount == 3) {
-                bt = System.currentTimeMillis();
-                updateCellInfo(bt, 1);
-            }
+                    if (bt == -1 && liveCount == 3) {
+                        bt = System.currentTimeMillis();
+                        updateCellInfo(bt, 1);
+                    }
 
-            long age = cur - bt;
+                    long age = cur - bt;
 
-            if (age > LIFE_PERIOD && bt != -1) {
-                System.out.println("Cell " + position + " is too old");
-                updateCellInfo(-1, 0);
+                    if (age > LIFE_PERIOD && bt != -1) {
+                        System.out.println("Cell " + position + " is too old");
+                        updateCellInfo(-1, 0);
+                    }
+                } finally {
+                    field.releaseAround(position);
+                }
+            } finally {
+                unlock();
             }
 
         }
@@ -105,5 +115,13 @@ public class Cell implements Runnable {
 
     public synchronized CellInfo getCellInfo() {
         return new CellInfo(position, birthtime > -1, size);
+    }
+
+    public void lock() {
+        lock.lock();
+    }
+
+    public void unlock() {
+        lock.unlock();
     }
 }

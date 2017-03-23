@@ -58,6 +58,13 @@ public class Field {
     public Set<Cell> findAround(Position pos) {
         return pos.around().stream()
                 .map(fieldMap::get)
+                .peek(Cell::lock)
                 .collect(Collectors.toSet());
+    }
+
+    public void releaseAround(Position pos) {
+        pos.around().stream()
+                .map(fieldMap::get)
+                .forEach(Cell::unlock);
     }
 }
